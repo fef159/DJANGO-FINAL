@@ -15,7 +15,7 @@ def home(request):
 def api_info(request):
     """Vista simple que muestra información de la API"""
     return JsonResponse({
-        'message': 'API E-commerce Django',
+        'message': 'API La Bodega del Salchichón',
         'endpoints': {
             'admin': '/admin/',
             'auth': {

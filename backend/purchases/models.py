@@ -11,10 +11,8 @@ class Purchase(models.Model):
     stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     payment_method = models.CharField(max_length=50, choices=[
         ('card', 'Tarjeta'),
-        ('google_pay', 'Google Pay'),
-        ('apple_pay', 'Apple Pay'),
         ('paypal', 'PayPal'),
-    ])
+    ], default='card')
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pendiente'),
         ('completed', 'Completada'),
@@ -43,4 +41,5 @@ class PurchaseItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name} x{self.quantity} - ${self.subtotal}"
+
 

@@ -23,13 +23,11 @@ class PurchaseSerializer(serializers.ModelSerializer):
 
 class CreatePurchaseSerializer(serializers.Serializer):
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    stripe_payment_intent_id = serializers.CharField(max_length=255)
+    stripe_payment_intent_id = serializers.CharField(max_length=255, required=False, allow_null=True, allow_blank=True)
     payment_method = serializers.ChoiceField(choices=[
         ('card', 'Tarjeta'),
-        ('google_pay', 'Google Pay'),
-        ('apple_pay', 'Apple Pay'),
         ('paypal', 'PayPal'),
-    ])
+    ], default='card')
     items = serializers.ListField(
         child=serializers.DictField(),
         allow_empty=False
@@ -37,8 +35,12 @@ class CreatePurchaseSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        # Si no hay stripe_payment_intent_id, no lo incluir en la creación
+        stripe_id = validated_data.pop('stripe_payment_intent_id', None)
+        
         purchase = Purchase.objects.create(
             user=self.context['request'].user,
+            stripe_payment_intent_id=stripe_id,
             **validated_data,
             status='completed'
         )

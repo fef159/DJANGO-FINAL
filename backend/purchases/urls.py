@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import PurchaseHistoryView, create_purchase, create_payment_intent
+from .views import (
+    PurchaseHistoryView, 
+    create_purchase, 
+    create_payment_intent,
+)
 
 urlpatterns = [
     path('history/', PurchaseHistoryView.as_view(), name='purchase_history'),

@@ -9,6 +9,9 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
 
 import os
 
+# Aplicar parche de compatibilidad para Python 3.14 ANTES de cargar Django
+from ecommerce import compatibility_patch
+
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ecommerce.settings')

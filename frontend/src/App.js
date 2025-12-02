@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -9,17 +7,16 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Checkout from './pages/Checkout';
 import PurchaseHistory from './pages/PurchaseHistory';
+import Cart from './pages/Cart';
+import Categories from './pages/Categories';
+import ProductsByCategory from './pages/ProductsByCategory';
+import ProductDetail from './pages/ProductDetail';
+import Profile from './pages/Profile';
+import Offers from './pages/Offers';
+import Sell from './pages/Sell';
+import Help from './pages/Help';
+import SearchResults from './pages/SearchResults';
 import './App.css';
-
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
-
-function CheckoutWrapper() {
-  return (
-    <Elements stripe={stripePromise}>
-      <Checkout />
-    </Elements>
-  );
-}
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -31,17 +28,66 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="loading">Cargando...</div>;
+  }
+  
+  return user ? <Navigate to="/" /> : children;
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route
+        path="/"
+        element={
+          <PrivateRoute>
+            <Home />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/categories"
+        element={
+          <PrivateRoute>
+            <Categories />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/categories/:slug"
+        element={
+          <PrivateRoute>
+            <ProductsByCategory />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/products/:slug"
+        element={
+          <PrivateRoute>
+            <ProductDetail />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/cart"
+        element={
+          <PrivateRoute>
+            <Cart />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/checkout"
         element={
           <PrivateRoute>
-            <CheckoutWrapper />
+            <Checkout />
           </PrivateRoute>
         }
       />
@@ -53,19 +99,71 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/offers"
+        element={
+          <PrivateRoute>
+            <Offers />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/sell"
+        element={
+          <PrivateRoute>
+            <Sell />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/help"
+        element={
+          <PrivateRoute>
+            <Help />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <PrivateRoute>
+            <SearchResults />
+          </PrivateRoute>
+        }
+      />
     </Routes>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="loading">Cargando...</div>;
+  }
+  
+  return (
+    <div className="App">
+      {isAuthenticated && <Navbar />}
+      <main className="main-content">
+        <AppRoutes />
+      </main>
+    </div>
   );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
-        <Navbar />
-        <main className="main-content">
-          <AppRoutes />
-        </main>
-      </div>
+      <AppContent />
     </AuthProvider>
   );
 }

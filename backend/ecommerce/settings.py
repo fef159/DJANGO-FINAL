@@ -2,6 +2,12 @@
 Django settings for ecommerce project.
 """
 
+# Aplicar parche de compatibilidad para Python 3.14 lo más temprano posible
+try:
+    from . import compatibility_patch
+except ImportError:
+    pass
+
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
@@ -37,6 +43,7 @@ INSTALLED_APPS = [
     'accounts',
     'purchases',
     'products',
+    'cart',
 ]
 
 MIDDLEWARE = [
@@ -136,6 +143,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': [
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
 }
 
 # JWT Settings
@@ -156,4 +167,11 @@ CORS_ALLOW_CREDENTIALS = True
 # Stripe Settings
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+
+# Debug: Verificar que Stripe se cargue correctamente
+if not STRIPE_SECRET_KEY or STRIPE_SECRET_KEY == '':
+    print("⚠️ ADVERTENCIA: STRIPE_SECRET_KEY no está configurada o está vacía")
+    print(f"   Valor actual: '{STRIPE_SECRET_KEY}'")
+else:
+    print(f"✅ STRIPE_SECRET_KEY cargada correctamente: {STRIPE_SECRET_KEY[:20]}...")
 

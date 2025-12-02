@@ -27,7 +27,9 @@ export function AuthProvider({ children }) {
       localStorage.setItem('refresh', refresh);
       setToken(access);
       api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-      queryClient.invalidateQueries(['currentUser']);
+      // Invalidar y refetch inmediatamente
+      await queryClient.invalidateQueries(['currentUser']);
+      await queryClient.refetchQueries(['currentUser']);
       return { success: true };
     } catch (error) {
       return {
@@ -40,16 +42,33 @@ export function AuthProvider({ children }) {
   const register = async (userData) => {
     try {
       const response = await api.post('/api/auth/register/', userData);
-      // Auto login después del registro
+      
+      // Si el registro devuelve tokens directamente, usarlos
+      if (response.data.access && response.data.refresh) {
+        localStorage.setItem('token', response.data.access);
+        localStorage.setItem('refresh', response.data.refresh);
+        setToken(response.data.access);
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+        // Invalidar y refetch inmediatamente
+        await queryClient.invalidateQueries(['currentUser']);
+        await queryClient.refetchQueries(['currentUser']);
+        return { success: true };
+      }
+      
+      // Si no hay tokens, intentar login automático
       if (response.data.user) {
         const loginResult = await login(userData.email, userData.password);
         return loginResult;
+      } else {
+        // Si no retorna user, hacer login manual
+        const loginResult = await login(userData.email, userData.password);
+        return loginResult;
       }
-      return { success: true };
     } catch (error) {
+      console.error('Error en registro:', error);
       return {
         success: false,
-        error: error.response?.data || 'Error al registrar usuario',
+        error: error.response?.data?.detail || error.response?.data?.message || error.response?.data || 'Error al registrar usuario',
       };
     }
   };

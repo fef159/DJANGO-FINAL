@@ -1,166 +1,148 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  PaymentElement,
-  useStripe,
-  useElements,
-  PaymentRequestButtonElement,
-} from '@stripe/react-stripe-js';
-import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import api from '../services/api';
 import './Checkout.css';
 
 function Checkout() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const stripe = useStripe();
-  const elements = useElements();
   const queryClient = useQueryClient();
   
-  const [cart, setCart] = useState(location.state?.cart || []);
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const { data: cart, isLoading: cartLoading } = useQuery({
+    queryKey: ['cart'],
+    queryFn: async () => {
+      const response = await api.get('/api/cart/');
+      return response.data;
+    },
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
-  const [paymentRequest, setPaymentRequest] = useState(null);
+  
+  // Datos del formulario de tarjeta
+  const [cardData, setCardData] = useState({
+    cardNumber: '',
+    cardName: '',
+    expiryDate: '',
+    cvv: '',
+  });
+
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
-    if (cart.length === 0) {
-      navigate('/');
-    } else if (stripe && !clientSecret) {
-      // Crear PaymentIntent cuando se carga el componente y stripe está listo
-      createPaymentIntent();
+    if (!cartLoading && (!cart || !cart.items || cart.items.length === 0)) {
+      navigate('/cart');
     }
-  }, [cart, navigate, stripe, clientSecret]);
+  }, [cart, cartLoading, navigate]);
 
-  useEffect(() => {
-    if (stripe && clientSecret && !paymentRequest) {
-      setupPaymentRequest();
+  const total = cart ? parseFloat(cart.total_amount) : 0;
+
+  // Validar formulario
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validar número de tarjeta (16 dígitos)
+    const cardNumber = cardData.cardNumber.replace(/\s/g, '');
+    if (!cardNumber || cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
+      errors.cardNumber = 'Ingrese un número de tarjeta válido (16 dígitos)';
     }
-  }, [stripe, clientSecret, paymentRequest]);
-
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  const createPaymentIntent = async () => {
-    try {
-      const response = await api.post('/api/purchases/create-payment-intent/', {
-        total_amount: total.toFixed(2),
-      });
-      const secret = response.data.clientSecret;
-      setClientSecret(secret);
-      
-    } catch (err) {
-      const errorData = err.response?.data;
-      if (errorData?.help) {
-        setError(`${errorData.error}: ${errorData.message || ''}. ${errorData.help}`);
-      } else {
-        setError('Error al crear el intent de pago: ' + (errorData?.error || errorData?.message || err.message));
+    
+    // Validar nombre
+    if (!cardData.cardName || cardData.cardName.trim().length < 3) {
+      errors.cardName = 'Ingrese el nombre del titular de la tarjeta';
+    }
+    
+    // Validar fecha de expiración (MM/YY)
+    const expiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+    if (!cardData.expiryDate || !expiryRegex.test(cardData.expiryDate)) {
+      errors.expiryDate = 'Ingrese una fecha válida (MM/AA)';
+    } else {
+      // Validar que no esté expirada
+      const [month, year] = cardData.expiryDate.split('/');
+      const expiry = new Date(2000 + parseInt(year), parseInt(month) - 1);
+      const now = new Date();
+      if (expiry < now) {
+        errors.expiryDate = 'La tarjeta está expirada';
       }
+    }
+    
+    // Validar CVV (3 o 4 dígitos)
+    if (!cardData.cvv || (cardData.cvv.length !== 3 && cardData.cvv.length !== 4) || !/^\d+$/.test(cardData.cvv)) {
+      errors.cvv = 'Ingrese un CVV válido (3 o 4 dígitos)';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Formatear número de tarjeta (agregar espacios cada 4 dígitos)
+  const formatCardNumber = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches && matches[0] || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(' ');
+    } else {
+      return v;
     }
   };
 
-  const setupPaymentRequest = () => {
-    if (!stripe || !clientSecret) return;
-
-    const pr = stripe.paymentRequest({
-      country: 'US',
-      currency: 'usd',
-      total: {
-        label: 'Total',
-        amount: Math.round(total * 100),
-      },
-      requestPayerName: true,
-      requestPayerEmail: true,
-    });
-
-    pr.canMakePayment().then((result) => {
-      if (result) {
-        setPaymentRequest(pr);
-        
-        pr.on('paymentmethod', async (ev) => {
-          const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
-            clientSecret,
-            { payment_method: ev.paymentMethod.id },
-            { handleActions: false }
-          );
-
-          if (confirmError) {
-            ev.complete('fail');
-            setError(confirmError.message);
-          } else {
-            ev.complete('success');
-            if (paymentIntent && paymentIntent.status === 'succeeded') {
-              // Determinar el método de pago basado en el método disponible
-              const method = result.applePay ? 'apple_pay' : 'google_pay';
-              await handlePaymentSuccess(paymentIntent.id, method);
-            }
-          }
-        });
-      }
-    });
+  // Formatear fecha de expiración (MM/YY)
+  const formatExpiryDate = (value) => {
+    const v = value.replace(/\D/g, '');
+    if (v.length >= 2) {
+      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    }
+    return v;
   };
 
-  const handlePayment = async (paymentMethodType = 'card') => {
-    if (!stripe || !elements || !clientSecret) {
-      return;
+  // Manejar cambios en los campos
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'cardNumber') {
+      setCardData({ ...cardData, [name]: formatCardNumber(value) });
+    } else if (name === 'expiryDate') {
+      setCardData({ ...cardData, [name]: formatExpiryDate(value) });
+    } else if (name === 'cvv') {
+      setCardData({ ...cardData, [name]: value.replace(/\D/g, '').substring(0, 4) });
+    } else {
+      setCardData({ ...cardData, [name]: value });
     }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      let result;
-
-      if (paymentMethodType === 'card') {
-        result = await stripe.confirmPayment({
-          elements,
-          confirmParams: {
-            return_url: `${window.location.origin}/history`,
-          },
-          redirect: 'if_required',
-        });
-      } else if (paymentMethodType === 'paypal') {
-        // PayPal se maneja como un método de pago alternativo
-        // En producción, usarías Stripe Connect o una integración directa con PayPal
-        setError('PayPal está en desarrollo. Por favor, usa tarjeta de crédito.');
-        setLoading(false);
-        return;
-      }
-
-      if (result.error) {
-        setError(result.error.message);
-        setLoading(false);
-      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        // Guardar compra en el backend
-        await handlePaymentSuccess(result.paymentIntent.id, paymentMethodType);
-      }
-    } catch (err) {
-      setError(err.message || 'Error al procesar el pago');
-      setLoading(false);
+    
+    // Limpiar error del campo cuando el usuario empiece a escribir
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
     }
   };
 
-  const handlePaymentSuccess = async (paymentIntentId, method) => {
-    await savePurchase({ id: paymentIntentId }, method);
-  };
-
-  const savePurchase = async (paymentIntent, method) => {
-    try {
+  // Mutación para crear la compra
+  const createPurchaseMutation = useMutation({
+    mutationFn: async () => {
       const purchaseData = {
         total_amount: total.toFixed(2),
-        stripe_payment_intent_id: paymentIntent.id,
-        payment_method: method || paymentMethod,
-        items: cart.map((item) => ({
-          product_name: item.name,
+        payment_method: 'card',
+        items: cart.items.map((item) => ({
+          product_name: item.product.name,
           quantity: item.quantity,
-          price: item.price.toFixed(2),
+          price: item.product.final_price,
         })),
       };
 
-      await api.post('/api/purchases/create/', purchaseData);
+      const response = await api.post('/api/purchases/create/', purchaseData);
+      return response.data;
+    },
+    onSuccess: async () => {
+      // Limpiar el carrito después de la compra exitosa
+      await api.delete('/api/cart/clear/');
       
-      // Invalidar cache para refrescar historial
+      // Invalidar cache para refrescar historial y carrito
       queryClient.invalidateQueries(['purchaseHistory']);
+      queryClient.invalidateQueries(['cart']);
       
       // Prefetch del historial para navegación fluida
       queryClient.prefetchQuery({
@@ -172,11 +154,48 @@ function Checkout() {
       });
 
       navigate('/history', { state: { success: true } });
-    } catch (err) {
-      setError('Error al guardar la compra: ' + (err.response?.data?.detail || err.message));
+    },
+    onError: (err) => {
+      setError('Error al procesar la compra: ' + (err.response?.data?.detail || err.message));
       setLoading(false);
+    },
+  });
+
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
     }
+
+    if (total <= 0) {
+      setError('El total debe ser mayor a 0');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    createPurchaseMutation.mutate();
   };
+
+  if (cartLoading) {
+    return (
+      <div className="checkout-container">
+        <div className="loading">Cargando carrito...</div>
+      </div>
+    );
+  }
+
+  if (!cart || !cart.items || cart.items.length === 0) {
+    return (
+      <div className="checkout-container">
+        <div className="error-message">Tu carrito está vacío</div>
+        <button onClick={() => navigate('/cart')} className="btn btn-primary">
+          Volver al Carrito
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="checkout-container">
@@ -185,113 +204,108 @@ function Checkout() {
       <div className="checkout-content">
         <div className="order-summary">
           <h3>Resumen del Pedido</h3>
-          {cart.map((item) => (
+          {cart.items.map((item) => (
             <div key={item.id} className="order-item">
               <div className="item-info">
-                <span className="item-name">{item.name}</span>
+                <span className="item-name">{item.product.name}</span>
                 <span className="item-quantity">x{item.quantity}</span>
               </div>
               <span className="item-price">
-                ${(item.price * item.quantity).toFixed(2)}
+                ${item.subtotal}
               </span>
             </div>
           ))}
           <div className="order-total">
-            <strong>Total: ${total.toFixed(2)}</strong>
+            <span>Total:</span>
+            <strong>${total.toFixed(2)}</strong>
           </div>
         </div>
 
         <div className="payment-section">
-          <h3>Método de Pago</h3>
+          <h3>Información de Pago</h3>
           
-          <div className="payment-methods">
-            <button
-              className={`payment-method-btn ${paymentMethod === 'card' ? 'active' : ''}`}
-              onClick={() => setPaymentMethod('card')}
-            >
-              Tarjeta
-            </button>
-            <button
-              className={`payment-method-btn ${paymentMethod === 'google_pay' ? 'active' : ''}`}
-              onClick={() => setPaymentMethod('google_pay')}
-            >
-              Google Pay
-            </button>
-            <button
-              className={`payment-method-btn ${paymentMethod === 'apple_pay' ? 'active' : ''}`}
-              onClick={() => setPaymentMethod('apple_pay')}
-            >
-              Apple Pay
-            </button>
-            <button
-              className={`payment-method-btn ${paymentMethod === 'paypal' ? 'active' : ''}`}
-              onClick={() => setPaymentMethod('paypal')}
-            >
-              PayPal
-            </button>
-          </div>
-
           {error && <div className="error-message">{error}</div>}
 
-          {paymentMethod === 'card' && clientSecret && (
-            <div className="card-payment">
-              <PaymentElement 
-                options={{
-                  clientSecret: clientSecret,
-                }}
+          <form onSubmit={handlePayment} className="payment-form">
+            <div className="form-group">
+              <label htmlFor="cardNumber">Número de Tarjeta</label>
+              <input
+                type="text"
+                id="cardNumber"
+                name="cardNumber"
+                value={cardData.cardNumber}
+                onChange={handleInputChange}
+                placeholder="1234 5678 9012 3456"
+                maxLength="19"
+                className={formErrors.cardNumber ? 'error' : ''}
               />
-              <button
-                onClick={() => handlePayment('card')}
-                disabled={!stripe || !elements || loading}
-                className="pay-button"
-              >
-                {loading ? 'Procesando...' : `Pagar $${total.toFixed(2)}`}
-              </button>
+              {formErrors.cardNumber && (
+                <span className="field-error">{formErrors.cardNumber}</span>
+              )}
             </div>
-          )}
 
-          {paymentMethod === 'card' && !clientSecret && (
-            <div className="card-payment">
-              <p>Cargando formulario de pago...</p>
-            </div>
-          )}
-
-          {(paymentMethod === 'google_pay' || paymentMethod === 'apple_pay') && paymentRequest && (
-            <div className="wallet-payment">
-              <PaymentRequestButtonElement
-                options={{
-                  paymentRequest: paymentRequest,
-                  style: {
-                    paymentRequestButton: {
-                      theme: 'dark',
-                      height: '48px',
-                    },
-                  },
-                }}
+            <div className="form-group">
+              <label htmlFor="cardName">Nombre del Titular</label>
+              <input
+                type="text"
+                id="cardName"
+                name="cardName"
+                value={cardData.cardName}
+                onChange={handleInputChange}
+                placeholder="JUAN PEREZ"
+                className={formErrors.cardName ? 'error' : ''}
               />
+              {formErrors.cardName && (
+                <span className="field-error">{formErrors.cardName}</span>
+              )}
             </div>
-          )}
 
-          {(paymentMethod === 'google_pay' || paymentMethod === 'apple_pay') && !paymentRequest && (
-            <div className="wallet-payment">
-              <p>Este método de pago no está disponible en tu dispositivo.</p>
-            </div>
-          )}
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="expiryDate">Fecha de Expiración</label>
+                <input
+                  type="text"
+                  id="expiryDate"
+                  name="expiryDate"
+                  value={cardData.expiryDate}
+                  onChange={handleInputChange}
+                  placeholder="MM/AA"
+                  maxLength="5"
+                  className={formErrors.expiryDate ? 'error' : ''}
+                />
+                {formErrors.expiryDate && (
+                  <span className="field-error">{formErrors.expiryDate}</span>
+                )}
+              </div>
 
-          {paymentMethod === 'paypal' && (
-            <div className="wallet-payment">
-              <button
-                onClick={() => handlePayment('paypal')}
-                disabled={!stripe || loading}
-                className="pay-button"
-              >
-                {loading ? 'Procesando...' : `Pagar con PayPal $${total.toFixed(2)}`}
-              </button>
-              <p className="paypal-note">
-                Nota: La integración completa de PayPal requiere configuración adicional.
-              </p>
+              <div className="form-group">
+                <label htmlFor="cvv">CVV</label>
+                <input
+                  type="text"
+                  id="cvv"
+                  name="cvv"
+                  value={cardData.cvv}
+                  onChange={handleInputChange}
+                  placeholder="123"
+                  maxLength="4"
+                  className={formErrors.cvv ? 'error' : ''}
+                />
+                {formErrors.cvv && (
+                  <span className="field-error">{formErrors.cvv}</span>
+                )}
+              </div>
             </div>
-          )}
+
+            <button
+              type="submit"
+              disabled={loading || createPurchaseMutation.isPending}
+              className="pay-button"
+            >
+              {loading || createPurchaseMutation.isPending 
+                ? 'Procesando...' 
+                : `Pagar $${total.toFixed(2)}`}
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -299,4 +313,3 @@ function Checkout() {
 }
 
 export default Checkout;
-

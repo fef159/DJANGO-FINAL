@@ -10,9 +10,16 @@ const api = axios.create({
 // Interceptor para agregar token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Endpoints públicos que no requieren token
+    const publicEndpoints = ['/api/auth/register/', '/api/auth/login/', '/api/auth/token/refresh/'];
+    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
+    
+    // Solo agregar token si no es un endpoint público
+    if (!isPublicEndpoint) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -27,7 +34,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Endpoints públicos que no requieren autenticación
+    const publicEndpoints = ['/api/auth/register/', '/api/auth/login/', '/api/auth/token/refresh/'];
+    const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint));
+
+    // No intentar refrescar token en endpoints públicos
+    if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint) {
       originalRequest._retry = true;
 
       try {

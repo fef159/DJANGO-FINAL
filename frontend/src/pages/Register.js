@@ -58,6 +58,10 @@ function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-icon">🌭🐕</span>
+          <h1 className="brand-title">La Bodega del Salchichón</h1>
+        </div>
         <h2>Registrarse</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
