@@ -1,0 +1,31 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+/* Estilo Dragon Ball - Colores azul y naranja */
+:root {
+  --db-blue: #0066cc;
+  --db-orange: #ff6600;
+  --db-dark-blue: #003366;
+  --db-light-orange: #ff9933;
+}
+

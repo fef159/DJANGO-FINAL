@@ -1,0 +1,164 @@
+.checkout-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.checkout-container h2 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.checkout-content {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+}
+
+.order-summary,
+.payment-section {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.order-summary h3,
+.payment-section h3 {
+  color: var(--db-dark-blue);
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--db-orange);
+  padding-bottom: 0.5rem;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.item-name {
+  font-weight: 600;
+  color: var(--db-dark-blue);
+}
+
+.item-quantity {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.item-price {
+  font-weight: 600;
+  color: var(--db-orange);
+}
+
+.order-total {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--db-blue);
+  font-size: 1.3rem;
+  color: var(--db-dark-blue);
+  text-align: right;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.payment-method-btn {
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  background: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  color: var(--db-dark-blue);
+}
+
+.payment-method-btn:hover {
+  border-color: var(--db-blue);
+  background: #f0f8ff;
+}
+
+.payment-method-btn.active {
+  border-color: var(--db-orange);
+  background: var(--db-orange);
+  color: #fff;
+}
+
+.card-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.wallet-payment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+  gap: 1rem;
+}
+
+.paypal-note {
+  font-size: 0.9rem;
+  color: #666;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.pay-button {
+  width: 100%;
+  background: var(--db-orange);
+  color: #fff;
+  border: none;
+  padding: 1rem;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.pay-button:hover:not(:disabled) {
+  background: var(--db-light-orange);
+  transform: translateY(-2px);
+}
+
+.pay-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #c33;
+}
+
+@media (max-width: 768px) {
+  .checkout-content {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-methods {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
