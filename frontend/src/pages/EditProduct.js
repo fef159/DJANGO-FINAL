@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import './Sell.css';
+import './EditProduct.css';
 
-function Sell() {
+function EditProduct() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -16,45 +20,60 @@ function Sell() {
     is_featured: false,
   });
 
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Cargar categorías
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       const response = await api.get('/api/products/categories/');
-      // Manejar diferentes formatos de respuesta (paginación o lista directa)
       return response.data.results || response.data || [];
     },
   });
 
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  // Cargar producto
+  const { data: product, isLoading: productLoading, error: productError } = useQuery({
+    queryKey: ['myProduct', productId],
+    queryFn: async () => {
+      const response = await api.get(`/api/products/my-products/${productId}/`);
+      return response.data;
+    },
+    enabled: !!productId,
+    onSuccess: (data) => {
+      if (data) {
+        setFormData({
+          name: data.name || '',
+          description: data.description || '',
+          price: data.price || '',
+          discount_price: data.discount_price || '',
+          stock: data.stock || '',
+          category: data.category?.id || '',
+          image_url: data.image_url || '',
+          is_featured: data.is_featured || false,
+        });
+      }
+    },
+  });
 
-  const createProductMutation = useMutation({
+  const updateProductMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await api.post('/api/products/', data);
+      const response = await api.patch(`/api/products/my-products/${productId}/`, data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['products']);
-      queryClient.invalidateQueries(['categories']);
       queryClient.invalidateQueries(['myProducts']);
-      setSuccessMessage('✅ Producto creado exitosamente. Será revisado antes de ser publicado. Puedes verlo en "Mis Productos".');
+      queryClient.invalidateQueries(['myProduct', productId]);
+      queryClient.invalidateQueries(['products']);
+      setSuccessMessage('✅ Producto actualizado exitosamente.');
       setErrorMessage('');
-      setFormData({
-        name: '',
-        description: '',
-        price: '',
-        discount_price: '',
-        stock: '',
-        category: '',
-        image_url: '',
-        is_featured: false,
-      });
-      // Limpiar mensaje después de 7 segundos
-      setTimeout(() => setSuccessMessage(''), 7000);
+      setTimeout(() => {
+        navigate('/my-products');
+      }, 2000);
     },
     onError: (error) => {
       const errorData = error.response?.data;
-      let errorMsg = 'Error al crear el producto';
+      let errorMsg = 'Error al actualizar el producto';
       
       if (errorData) {
         if (typeof errorData === 'string') {
@@ -64,7 +83,6 @@ function Sell() {
         } else if (errorData.message) {
           errorMsg = errorData.message;
         } else {
-          // Si hay errores de validación, mostrarlos
           const validationErrors = Object.entries(errorData)
             .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
             .join('\n');
@@ -90,11 +108,9 @@ function Sell() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Limpiar mensajes previos
     setSuccessMessage('');
     setErrorMessage('');
 
-    // Validaciones
     const price = parseFloat(formData.price);
     const discountPrice = formData.discount_price ? parseFloat(formData.discount_price) : null;
     const stock = parseInt(formData.stock);
@@ -119,7 +135,6 @@ function Sell() {
       return;
     }
 
-    // Preparar datos para enviar
     const productData = {
       name: formData.name.trim(),
       description: formData.description.trim(),
@@ -130,7 +145,6 @@ function Sell() {
       is_featured: formData.is_featured,
     };
 
-    // Solo incluir category_id si se seleccionó una categoría
     if (formData.category) {
       const categoryId = parseInt(formData.category);
       if (!isNaN(categoryId)) {
@@ -138,30 +152,64 @@ function Sell() {
       }
     }
 
-    createProductMutation.mutate(productData);
+    updateProductMutation.mutate(productData);
   };
 
+  if (productLoading) {
+    return (
+      <div className="edit-product-container">
+        <div className="loading">Cargando producto...</div>
+      </div>
+    );
+  }
+
+  if (productError) {
+    return (
+      <div className="edit-product-container">
+        <div className="error-message">
+          Error al cargar el producto: {productError.message}
+        </div>
+        <button onClick={() => navigate('/my-products')} className="btn btn-primary">
+          Volver a Mis Productos
+        </button>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="edit-product-container">
+        <div className="error-message">Producto no encontrado</div>
+        <button onClick={() => navigate('/my-products')} className="btn btn-primary">
+          Volver a Mis Productos
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="sell-container">
-      <h2>Vender Producto</h2>
-      <p className="sell-subtitle">
-        Publica tu producto en nuestra plataforma y llega a miles de compradores
-      </p>
+    <div className="edit-product-container">
+      <div className="edit-product-header">
+        <h2>Editar Producto</h2>
+        <button onClick={() => navigate('/my-products')} className="btn-back">
+          ← Volver
+        </button>
+      </div>
 
-      <div className="sell-card">
-        {successMessage && (
-          <div className="success-message">
-            {successMessage}
-          </div>
-        )}
-        
-        {errorMessage && (
-          <div className="error-message">
-            {errorMessage}
-          </div>
-        )}
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
+        </div>
+      )}
+      
+      {errorMessage && (
+        <div className="error-message">
+          {errorMessage}
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="sell-form">
+      <div className="edit-product-card">
+        <form onSubmit={handleSubmit} className="edit-product-form">
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="name">Nombre del Producto *</label>
@@ -287,16 +335,23 @@ function Sell() {
 
           <div className="form-actions">
             <button
+              type="button"
+              onClick={() => navigate('/my-products')}
+              className="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+            <button
               type="submit"
               className="btn btn-primary btn-large"
-              disabled={createProductMutation.isPending}
+              disabled={updateProductMutation.isPending}
             >
-              {createProductMutation.isPending ? 'Publicando...' : 'Publicar Producto'}
+              {updateProductMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>
 
           <p className="form-note">
-            * Campos obligatorios. Tu producto será revisado antes de ser publicado.
+            * Campos obligatorios. Los cambios serán revisados antes de ser publicados.
           </p>
         </form>
       </div>
@@ -304,8 +359,5 @@ function Sell() {
   );
 }
 
-export default Sell;
-
-
-
+export default EditProduct;
 

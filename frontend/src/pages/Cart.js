@@ -26,6 +26,10 @@ function Cart() {
       const response = await api.put(`/api/cart/items/${itemId}/`, { quantity });
       return response.data;
     },
+    onError: (err) => {
+      const errorMsg = err.response?.data?.error || 'Error al actualizar la cantidad';
+      alert(errorMsg);
+    },
     onMutate: async ({ itemId, quantity }) => {
       // Cancelar queries en curso
       await queryClient.cancelQueries({ queryKey: ['cart'] });
@@ -224,16 +228,33 @@ function Cart() {
                     disabled={
                       updateQuantityMutation.isPending ||
                       !item.product.is_available ||
-                      item.quantity >= item.product.stock
+                      item.quantity >= (item.product.stock || 0)
                     }
                     className="quantity-btn"
+                    title={
+                      item.quantity >= (item.product.stock || 0)
+                        ? 'Stock insuficiente'
+                        : 'Aumentar cantidad'
+                    }
                   >
                     +
                   </button>
                 </div>
+                <div className="cart-item-stock">
+                  {item.product.stock !== undefined && (
+                    <span className={`stock-info ${item.product.stock === 0 ? 'out-of-stock' : item.product.stock <= 5 ? 'low-stock' : ''}`}>
+                      Stock: {item.product.stock}
+                    </span>
+                  )}
+                </div>
                 <div className="cart-item-subtotal">
                   ${item.subtotal}
                 </div>
+                {item.quantity > (item.product.stock || 0) && (
+                  <div className="stock-warning">
+                    ⚠️ Cantidad excede el stock disponible
+                  </div>
+                )}
                 <button
                   onClick={() => removeItemMutation.mutate(item.id)}
                   disabled={removeItemMutation.isPending}

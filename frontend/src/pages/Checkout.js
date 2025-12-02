@@ -127,6 +127,7 @@ function Checkout() {
         total_amount: total.toFixed(2),
         payment_method: 'card',
         items: cart.items.map((item) => ({
+          product_id: item.product.id,
           product_name: item.product.name,
           quantity: item.quantity,
           price: item.product.final_price,
@@ -136,27 +137,50 @@ function Checkout() {
       const response = await api.post('/api/purchases/create/', purchaseData);
       return response.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       // Limpiar el carrito después de la compra exitosa
       await api.delete('/api/cart/clear/');
       
-      // Invalidar cache para refrescar historial y carrito
+      // Invalidar y refrescar cache para historial y carrito
       queryClient.invalidateQueries(['purchaseHistory']);
       queryClient.invalidateQueries(['cart']);
       
-      // Prefetch del historial para navegación fluida
-      queryClient.prefetchQuery({
-        queryKey: ['purchaseHistory'],
-        queryFn: async () => {
-          const response = await api.get('/api/purchases/history/');
-          return response.data;
-        },
-      });
+      // Forzar refetch del historial para asegurar que se actualice
+      await queryClient.refetchQueries(['purchaseHistory']);
 
-      navigate('/history', { state: { success: true } });
+      // Redirigir a la boleta de la compra recién creada
+      const purchaseId = data?.id;
+      if (purchaseId) {
+        navigate(`/receipt/${purchaseId}`);
+      } else {
+        navigate('/history', { state: { success: true } });
+      }
     },
     onError: (err) => {
-      setError('Error al procesar la compra: ' + (err.response?.data?.detail || err.message));
+      const errorData = err.response?.data;
+      let errorMsg = 'Error al procesar la compra';
+      
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (errorData.detail) {
+          errorMsg = errorData.detail;
+        } else if (errorData.error) {
+          errorMsg = errorData.error;
+        } else if (errorData.items) {
+          // Errores de validación de items
+          const itemErrors = Object.entries(errorData.items)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+            .join('\n');
+          errorMsg = 'Error en los productos:\n' + itemErrors;
+        } else {
+          errorMsg = JSON.stringify(errorData);
+        }
+      } else {
+        errorMsg = err.message;
+      }
+      
+      setError(errorMsg);
       setLoading(false);
     },
   });
@@ -171,6 +195,23 @@ function Checkout() {
     if (total <= 0) {
       setError('El total debe ser mayor a 0');
       return;
+    }
+
+    // Validar stock antes de procesar el pago
+    if (cart && cart.items) {
+      const stockErrors = [];
+      for (const item of cart.items) {
+        if (item.quantity > (item.product.stock || 0)) {
+          stockErrors.push(
+            `${item.product.name}: cantidad solicitada (${item.quantity}) excede el stock disponible (${item.product.stock || 0})`
+          );
+        }
+      }
+      
+      if (stockErrors.length > 0) {
+        setError('Stock insuficiente:\n' + stockErrors.join('\n'));
+        return;
+      }
     }
 
     setLoading(true);

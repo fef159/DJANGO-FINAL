@@ -1,5 +1,8 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 from decimal import Decimal
+
+User = get_user_model()
 
 
 class Category(models.Model):
@@ -27,6 +30,7 @@ class Product(models.Model):
     image_url = models.URLField(blank=True, null=True)
     stock = models.PositiveIntegerField(default=0)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products_sold', null=True, blank=True)
     is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -43,6 +47,7 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=['category', 'is_active']),
             models.Index(fields=['is_featured', 'is_active']),
+            models.Index(fields=['seller', 'is_active']),
         ]
 
     def __str__(self):

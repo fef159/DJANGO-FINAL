@@ -1,6 +1,6 @@
 from rest_framework import generics, filters
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -102,3 +102,23 @@ def recommended_products(request, product_id):
         return Response(serializer.data)
     except Product.DoesNotExist:
         return Response({'error': 'Producto no encontrado'}, status=404)
+
+
+class MyProductsView(generics.ListAPIView):
+    """Listar productos del usuario actual (productos por vender)"""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Retornar todos los productos del usuario, activos e inactivos
+        return Product.objects.filter(seller=self.request.user).order_by('-created_at')
+
+
+class MyProductDetailView(generics.RetrieveUpdateAPIView):
+    """Obtener y actualizar un producto específico del usuario"""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Solo permitir acceso a productos del usuario actual
+        return Product.objects.filter(seller=self.request.user)

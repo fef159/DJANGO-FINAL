@@ -221,6 +221,38 @@
   color: var(--primary);
 }
 
+.cart-item-stock {
+  margin-top: var(--spacing-xs);
+  font-size: 0.85rem;
+}
+
+.stock-info {
+  color: var(--text-secondary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.stock-info.low-stock {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.stock-info.out-of-stock {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.stock-warning {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
 .btn-remove {
   background: rgba(239, 68, 68, 0.1);
   border: 2px solid var(--error);

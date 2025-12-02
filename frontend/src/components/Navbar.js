@@ -96,6 +96,13 @@ function Navbar() {
                 >
                   Mis Compras
                 </Link>
+                <Link
+                  to="/my-products"
+                  className="profile-dropdown-item"
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  Mis Productos
+                </Link>
                 <div className="profile-dropdown-divider"></div>
                 <button
                   onClick={handleLogout}

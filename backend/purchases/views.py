@@ -182,4 +182,19 @@ def create_purchase(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_purchase_detail(request, purchase_id):
+    """Obtener detalles de una compra específica"""
+    try:
+        purchase = Purchase.objects.get(id=purchase_id, user=request.user)
+        serializer = PurchaseSerializer(purchase)
+        return Response(serializer.data)
+    except Purchase.DoesNotExist:
+        return Response(
+            {'error': 'Compra no encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+
 

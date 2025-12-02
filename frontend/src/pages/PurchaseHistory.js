@@ -1,21 +1,39 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import './PurchaseHistory.css';
 
 function PurchaseHistory() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const success = location.state?.success;
 
-  const { data: purchases, isLoading, error } = useQuery({
+  const { data: purchases, isLoading, error, refetch } = useQuery({
     queryKey: ['purchaseHistory'],
     queryFn: async () => {
       const response = await api.get('/api/purchases/history/');
-      return response.data.results || response.data;
+      // Manejar diferentes formatos de respuesta
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data.results) {
+        return response.data.results;
+      } else {
+        return [];
+      }
     },
-    staleTime: 30000, // 30 segundos
+    staleTime: 0, // Siempre considerar los datos como obsoletos para refrescar
+    refetchOnWindowFocus: true, // Refrescar cuando la ventana recupera el foco
+    refetchOnMount: true, // Refrescar al montar el componente
   });
+
+  // Refrescar cuando se recibe el estado de éxito
+  React.useEffect(() => {
+    if (success) {
+      refetch();
+    }
+  }, [success, refetch]);
 
   if (isLoading) {
     return (
@@ -35,9 +53,19 @@ function PurchaseHistory() {
     );
   }
 
+  const handleRefresh = () => {
+    queryClient.invalidateQueries(['purchaseHistory']);
+    refetch();
+  };
+
   return (
     <div className="history-container">
-      <h2>Historial de Compras</h2>
+      <div className="history-header">
+        <h2>Historial de Compras</h2>
+        <button onClick={handleRefresh} className="btn-refresh" disabled={isLoading}>
+          {isLoading ? '🔄' : '🔄'} Actualizar
+        </button>
+      </div>
       
       {success && (
         <div className="success-message">
@@ -115,6 +143,15 @@ function PurchaseHistory() {
                   </ul>
                 </div>
               )}
+
+              <div className="purchase-actions">
+                <button
+                  onClick={() => navigate(`/receipt/${purchase.id}`)}
+                  className="btn-view-receipt"
+                >
+                  📄 Ver Boleta
+                </button>
+              </div>
             </div>
           ))}
         </div>

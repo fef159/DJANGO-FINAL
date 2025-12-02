@@ -16,6 +16,9 @@ import Offers from './pages/Offers';
 import Sell from './pages/Sell';
 import Help from './pages/Help';
 import SearchResults from './pages/SearchResults';
+import Receipt from './pages/Receipt';
+import MyProducts from './pages/MyProducts';
+import EditProduct from './pages/EditProduct';
 import './App.css';
 
 function PrivateRoute({ children }) {
@@ -100,6 +103,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/receipt/:purchaseId"
+        element={
+          <PrivateRoute>
+            <Receipt />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/profile"
         element={
           <PrivateRoute>
@@ -120,6 +131,22 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <Sell />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/my-products"
+        element={
+          <PrivateRoute>
+            <MyProducts />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/edit-product/:productId"
+        element={
+          <PrivateRoute>
+            <EditProduct />
           </PrivateRoute>
         }
       />

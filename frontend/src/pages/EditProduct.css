@@ -1,27 +1,44 @@
-.sell-container {
+.edit-product-container {
   max-width: 900px;
   margin: 0 auto;
   padding: var(--spacing-xl) 0;
 }
 
-.sell-container h2 {
+.edit-product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-lg);
+}
+
+.edit-product-header h2 {
   color: var(--text-white);
-  text-align: center;
-  margin-bottom: var(--spacing-md);
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 700;
   text-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  margin: 0;
 }
 
-.sell-subtitle {
-  color: var(--text-white);
-  text-align: center;
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin-bottom: var(--spacing-2xl);
+.btn-back {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
 }
 
-.sell-card {
+.btn-back:hover {
+  background: var(--bg-card);
+  transform: translateY(-2px);
+}
+
+.edit-product-card {
   background: var(--bg-card);
   padding: var(--spacing-2xl);
   border-radius: var(--radius-xl);
@@ -29,7 +46,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.sell-form {
+.edit-product-form {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
@@ -95,13 +112,16 @@
 }
 
 .form-actions {
+  display: flex;
+  gap: var(--spacing-lg);
   margin-top: var(--spacing-lg);
+  justify-content: flex-end;
 }
 
 .btn-large {
-  width: 100%;
   padding: var(--spacing-lg);
   font-size: 1.2rem;
+  min-width: 200px;
 }
 
 .form-note {
@@ -147,11 +167,29 @@
 }
 
 @media (max-width: 768px) {
+  .edit-product-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .edit-product-header h2 {
+    text-align: center;
+  }
+
+  .btn-back {
+    width: 100%;
+  }
+
   .form-row {
     grid-template-columns: 1fr;
   }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn-large {
+    width: 100%;
+  }
 }
-
-
-
 
